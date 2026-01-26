@@ -36,7 +36,7 @@ def parse_timedelta_str(t_str):
         print(f"[!] Failed to parse time string '{t_str}': {e}")
         return None
 
-def get_total_latency(avg_n=30):
+def get_total_latency(avg_n=100):
     try:
         # response times are written with locust
         with open("../response_times.csv") as f:
@@ -49,7 +49,7 @@ def get_total_latency(avg_n=30):
         print(f"[!] Failed to parse response_times.csv: {e}")
         return 200.0
 
-def get_service_latency_from_api(avg_n=20):
+def get_service_latency_from_api(avg_n=100):
     try:
         url = "http://172.16.0.1:32355/get_processing_times/microservice1"
         response = requests.get(url)
@@ -108,7 +108,7 @@ def get_real_cpu_usage():
                         return np.clip(cpu, 0.0, 100.0)
 
         print("[!] CPU metric not found.")
-        return 50.0
+        return 1000.0
     except Exception as e:
         print(f"[!] Failed to fetch CPU metric: {e}")
-        return 50.0
+        return 1000.0

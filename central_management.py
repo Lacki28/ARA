@@ -8,14 +8,14 @@ NETWORK_BANDWIDTH_URL = "http://128.131.172.95:5050/network/bandwidth"
 
 
 def increase_target(last_latency, min_range, max_range):
-    return last_latency + (max_range / 10)
+    # return last_latency + (max_range / 10)
     steps, idx = log_steps(last_latency, min_range, max_range)
     idx = min(idx + 1, len(steps) - 1)
     return steps[idx]
 
 
 def decrease_target(last_latency, min_range, max_range):
-    return last_latency - (max_range / 10)
+    # return last_latency - (max_range / 10)
     steps, idx = log_steps(last_latency, min_range, max_range)
     idx = max(0, idx - 1)
     return steps[idx]

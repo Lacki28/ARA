@@ -14,7 +14,7 @@ class DummyEnv(gym.Env):
         super().__init__()
         low = np.array([
             0,
-            0,
+            0.01,
             0,
             0], dtype=np.float32)
         high = np.array([
@@ -35,7 +35,7 @@ class DummyEnv(gym.Env):
 
 
 class Agent:
-    def __init__(self, rewards, state, state_key, action_space, action_update, name):
+    def __init__(self, rewards, state, state_key, action_space, action_update, name, strategy):
         super().__init__()
         dummy_env = DummyEnv()
         self.model = PPO.load("../models/general_model_32_0.0001_512")
@@ -53,24 +53,42 @@ class Agent:
         self.action_lower_limit = action_space['lower']
         self.last_action = 1
         self.step=0
+        self.strategy=strategy
 
-    def normalize(self, value, upper, lower):
+    def normalize(self, value, lower, upper):
         return (value - lower) / (upper - lower)
+    def update_limits(self, SLO_limits):
+        SLO_limit=SLO_limits[self.state_name]
+        self.upper_limit = SLO_limit['upper']
+        self.lower_limit = SLO_limit['lower']
 
     def get_state_vector(self):
         state = [self.normalize(self.current_resources, self.action_lower_limit, self.action_upper_limit),
-                 self.normalize(self.current_state, self.upper_limit, 0),
-                 self.normalize(self.lower_limit, self.upper_limit, 0),
-                 self.normalize(self.upper_limit, self.upper_limit, 0)]
+                 self.normalize(self.current_state,  0,self.upper_limit),
+                 self.normalize(self.lower_limit, 0,self.upper_limit),
+                 self.normalize(self.upper_limit, 0,self.upper_limit)]
         return state
+    def reactive_strategy(self, state):
+        current_value=state[1]
+        lower=state[2]
+        upper=state[3]
+        if current_value<lower:
+            return 2
+        if current_value>upper:
+            return 0
+        return 1
+
 
     def perform_action(self):
         state = self.get_state_vector()
-        self.last_action, _ = self.model.predict(state, deterministic=True)
-        print(f"{self.name}: action {self.last_action} - {self.current_resources}")
-        print(f"AGENT {self.action_function}")
+        if self.strategy == "reactive":
+            self.last_action=self.reactive_strategy(state)
+        else:
+            self.last_action, _ = self.model.predict(state, deterministic=True)
         self.current_resources = self.action_function(self.last_action, self.current_resources)
-        print(f"AGENT {self.current_resources} {self.name}")
+        print(f"{self.name}: action {self.last_action} - {state}")
+        print(f"{self.action_lower_limit}<{self.action_upper_limit}")
+        print(f"{self.current_resources}-{self.normalize(self.current_resources, self.action_lower_limit, self.action_upper_limit)}")
         wandb.log({f"{self.name} action": self.last_action})
         wandb.log({f"{self.name} resources": self.current_resources})
         # wandb.log({f"{self.name} state": self.current_state})
@@ -80,11 +98,11 @@ class Agent:
         state = self.get_state_vector()
         reward=rewards[self.state_name]
         wandb.log({f"{self.name} reward": reward})
-
-        add_to_buffer(state, self.model, self.last_action, reward)
+        if self.strategy != "reactive":
+            add_to_buffer(state, self.model, self.last_action, reward)
         self.current_state = new_state[self.state_name]
-        if self.step>=2:
-            self.train()
+        if self.step>=2 and self.strategy != "reactive":
+             self.train()
 
     def train(self):
         print("Training PPO...")

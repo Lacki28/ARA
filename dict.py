@@ -1,19 +1,23 @@
+import threading
 import time
 from single_agent import Agent
 from utils import get_network_latency, get_compute_latency, get_total_latency_value, get_real_cpu_usage, \
     apply_compute_action, apply_network_action, get_total_delay
 import wandb
+from flask import Flask, request, jsonify
+import argparse
 
 # === Config ===
-LOOP_INTERVAL_SECONDS = 30
+LOOP_INTERVAL_SECONDS = 40
 
+app = Flask(__name__)
 
 class SLO():
     def __init__(self):
 # =============== High level Metrics ===============
         # We get the reward definitions from inSwitch
-        self.rewards = {"network_latency": {"lower": 750, "upper": 1250},
-                        "compute_latency": {"lower": 250, "upper": 750}}
+        self.rewards = {"network_latency": {"lower": 1000, "upper": 1500},
+                        "compute_latency": {"lower": 1000, "upper": 1500}}
         # We get the state definitions from inSwitch
         #First thing that we update to get the current state
         self.state = {"network_latency": None,
@@ -25,7 +29,7 @@ class SLO():
                              "total_latency": get_total_latency_value}
 # =============== Low level Metrics ===============
         # We get the lookup definitions from inSwitch/InNet/IDO
-        self.action_space = {"network_delay": {"lower": 0, "upper": 10},
+        self.action_space = {"network_delay": {"lower": 50, "upper": 0},
                              "compute_cpu": {"lower": 100, "upper": 900}}
         self.state_action_mapping = {"network_latency": "network_delay", "compute_latency": "compute_cpu"}
         self.action_update = {
@@ -35,16 +39,23 @@ class SLO():
     def update_state(self):
         for key, update_fn in self.state_update.items():
             self.state[key] = update_fn()
+    def update_SLOs(self, high_level_resource_metric, data):
+        self.rewards[high_level_resource_metric]["lower"] = data.get("lower", self.rewards[high_level_resource_metric]["lower"])
+        self.rewards[high_level_resource_metric]["upper"] = data.get("upper", self.rewards[high_level_resource_metric]["upper"])
+
 
     def rule_reward(self, value, lower=None, upper=None):
-        # Case 1: Only upper bound
+
+        # # Case 1: Only upper bound
         if upper is not None and lower is None:
+            print("CASE 1")
             if value > upper:
                 return -(value - upper) / upper #proportional
             return 2 - (value / upper)
 
         # Case 2: Only lower bound
         if lower is not None and upper is None:
+            print("CASE 2")
             if value < lower:
                     return -(lower - value) / lower #proportional
             return 2 - (lower / value) #if I am more above it is slightly better
@@ -53,11 +64,16 @@ class SLO():
         if lower is not None and upper is not None:
             midpoint = (lower + upper) / 2
             half_range = (upper - lower) / 2
+            print(f"CASE 3 {lower}<{value}<{upper}")
 
             if value < lower:
-                return -(lower - value) / lower #min negative reward
+                print("value < lower")
+                return -0.5
+                # return -(lower - value) / lower #min negative reward
             if value > upper:
-                return -(value - upper) / upper #min negative reward
+                print("value > upper")
+                return -0.5
+                # return -(value - upper) / upper #min negative reward
             # Inside the range → reward increases near midpoint
             return 3 - abs(value - midpoint) / half_range #Max positive reward
         return 0
@@ -75,30 +91,49 @@ class SLO():
             total += r
         return total, new_rewards
 
-run = wandb.init(project='generalized MVP deployed tests with lacki ms1', name=f"Multi Agent Approach")
+SLOs = SLO()
+
+@app.route("/slo/update", methods=["POST"])
+def update_slo():
+    data = request.json
+    metric = data.get("metric")
+
+    if metric not in SLOs.rewards:
+        return jsonify({"error": "Metric not found"}), 404
+
+    SLOs.update_SLOs(metric, data)
+
+    return jsonify({"message": "SLO updated", "rewards": SLOs.rewards})
+
+def listen_to_SLO_updates():
+    app.run(host='127.0.0.1', port=5000, threaded=True)
+
 
 # === Main loop ===
-def main_loop():
+def main_loop(wandb_name, strategy):
+    wandb.init(project=f'{wandb_name}', name=f"Multi Agent Approach {strategy}")
+    route_thread = threading.Thread(target=listen_to_SLO_updates)
+    route_thread.start()
+
     print("starting the main loop")
     agents = []
     step = 0
-    SLOs = SLO()
     print("starting the main loop")
     SLOs.update_state()
     for action in SLOs.action_update:
         state_key = next(k for k, v in SLOs.state_action_mapping.items() if v == action)
         agent = Agent(SLOs.rewards[state_key], SLOs.state[state_key],state_key, SLOs.action_space[action],
-                      SLOs.action_update[action], action)
+                      SLOs.action_update[action], action, strategy)
         agents.append(agent)
     while True:
         print("perform")
         for agent in agents:
+            agent.update_limits(SLOs.rewards)
             agent.perform_action()
         print("waiting")
         time.sleep(LOOP_INTERVAL_SECONDS)
         SLOs.update_state()
         total_reward, rewards = SLOs.compute_reward()
-        print(f"Reward {total_reward}")
         wandb.log({"reward": total_reward})
         print(SLOs.state)
         wandb.log({"total_latency": SLOs.state})
@@ -108,6 +143,23 @@ def main_loop():
         step += 1
         print("-" * 50)
 
+def parse_args():
+    parser = argparse.ArgumentParser()
+
+    # Optional SLO parameters
+    parser.add_argument("--network-lower", type=float, default=1000)
+    parser.add_argument("--network-upper", type=float, default=1500)
+    parser.add_argument("--compute-lower", type=float, default=1000)
+    parser.add_argument("--compute-upper", type=float, default=1500)
+    parser.add_argument("--wandb_name", type=str, default="MVP tests")
+    parser.add_argument("--strategy", type=str, default="PPO")
+
+    return parser.parse_args()
 
 if __name__ == "__main__":
-    main_loop()
+    args = parse_args()
+    SLOs.rewards["network_latency"]["lower"] = args.network_lower
+    SLOs.rewards["network_latency"]["upper"] = args.network_upper
+    SLOs.rewards["compute_latency"]["lower"] = args.compute_lower
+    SLOs.rewards["compute_latency"]["upper"] = args.compute_upper
+    main_loop(args.wandb_name, args.strategy)
