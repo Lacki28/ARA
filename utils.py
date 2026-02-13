@@ -12,15 +12,16 @@ def apply_network_action(action, switch_delay_ms):
     elif action == 2:
         switch_delay_ms = increase_network_latency(switch_delay_ms)
     # Actions 1 and 4 are "maintain" → no-op
-    print(f"[Action] Applied action {action}")
+    print(f"[Action] Applied action {action} {switch_delay_ms}")
     return switch_delay_ms
+
 def apply_compute_action(action, cpu_limit):
     if action == 0:
         cpu_limit=decrease_k8s_latency(cpu_limit)
     elif action == 2:
         cpu_limit=increase_k8s_latency(cpu_limit)
     # Actions 1 and 4 are "maintain" → no-op
-    print(f"[Action] Applied action {action}")
+    print(f"[Action] Applied action {action} {cpu_limit}")
     return cpu_limit
 # === state lookup functions ===
 
@@ -51,7 +52,7 @@ def get_total_latency(avg_n=100):
 
 def get_service_latency_from_api(avg_n=100):
     try:
-        url = "http://172.16.0.1:32355/get_processing_times/microservice1"
+        url = "http://172.16.0.1:32663/get_processing_times/microservice1"
         response = requests.get(url)
         response.raise_for_status()
 

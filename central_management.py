@@ -100,7 +100,7 @@ def update_network_latency(delay_ms):
 def increase_network_latency(switch_delay_ms):
     """Increase network latency by 5ms."""
     # print(f"increase_switch_delay{switch_delay_ms}")
-    switch_delay_ms = increase_target(switch_delay_ms, 0, 100)
+    switch_delay_ms = increase_target(switch_delay_ms, 0, 50)
     # print(f"increase_switch_delay{switch_delay_ms}")
     update_network_latency(switch_delay_ms)
     return switch_delay_ms
@@ -109,7 +109,7 @@ def increase_network_latency(switch_delay_ms):
 def decrease_network_latency(switch_delay_ms):
     """Decrease network latency by 5ms."""
     # print(f"decrease_switch_delay{switch_delay_ms}")
-    switch_delay_ms = decrease_target(switch_delay_ms, 0, 100)
+    switch_delay_ms = decrease_target(switch_delay_ms, 0, 50)
     # print(f"decrease_switch_delay{switch_delay_ms}")
     # switch_delay_ms = max(1, switch_delay_ms - 2)  # Ensure delay does not go below 1
     update_network_latency(switch_delay_ms)

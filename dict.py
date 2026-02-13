@@ -1,14 +1,14 @@
 import threading
 import time
-from single_agent import Agent
+from new_agent import Agent
 from utils import get_network_latency, get_compute_latency, get_total_latency_value, get_real_cpu_usage, \
     apply_compute_action, apply_network_action, get_total_delay
 import wandb
 from flask import Flask, request, jsonify
 import argparse
-
+import requests
 # === Config ===
-LOOP_INTERVAL_SECONDS = 40
+LOOP_INTERVAL_SECONDS = 60
 
 app = Flask(__name__)
 
@@ -39,6 +39,7 @@ class SLO():
     def update_state(self):
         for key, update_fn in self.state_update.items():
             self.state[key] = update_fn()
+
     def update_SLOs(self, high_level_resource_metric, data):
         self.rewards[high_level_resource_metric]["lower"] = data.get("lower", self.rewards[high_level_resource_metric]["lower"])
         self.rewards[high_level_resource_metric]["upper"] = data.get("upper", self.rewards[high_level_resource_metric]["upper"])
@@ -110,8 +111,8 @@ def listen_to_SLO_updates():
 
 
 # === Main loop ===
-def main_loop(wandb_name, strategy):
-    wandb.init(project=f'{wandb_name}', name=f"Multi Agent Approach {strategy}")
+def main_loop(wandb_name, strategy, args):
+    wandb.init(project=f'{wandb_name}', name=f"{strategy}: bs:{args.batch_size} ep:{args.epochs} save? {args.save_model}")
     route_thread = threading.Thread(target=listen_to_SLO_updates)
     route_thread.start()
 
@@ -123,7 +124,7 @@ def main_loop(wandb_name, strategy):
     for action in SLOs.action_update:
         state_key = next(k for k, v in SLOs.state_action_mapping.items() if v == action)
         agent = Agent(SLOs.rewards[state_key], SLOs.state[state_key],state_key, SLOs.action_space[action],
-                      SLOs.action_update[action], action, strategy)
+                      SLOs.action_update[action], action, strategy,args.batch_size, args.epochs, args.save_model)
         agents.append(agent)
     while True:
         print("perform")
@@ -131,6 +132,7 @@ def main_loop(wandb_name, strategy):
             agent.update_limits(SLOs.rewards)
             agent.perform_action()
         print("waiting")
+        response = requests.post("http://172.16.0.1:32663/clear_data")
         time.sleep(LOOP_INTERVAL_SECONDS)
         SLOs.update_state()
         total_reward, rewards = SLOs.compute_reward()
@@ -153,6 +155,9 @@ def parse_args():
     parser.add_argument("--compute-upper", type=float, default=1500)
     parser.add_argument("--wandb_name", type=str, default="MVP tests")
     parser.add_argument("--strategy", type=str, default="PPO")
+    parser.add_argument("--batch_size", type=int, default=14)
+    parser.add_argument("--epochs", type=int, default=1)
+    parser.add_argument("--save_model", type=int, default=0)
 
     return parser.parse_args()
 
@@ -162,4 +167,4 @@ if __name__ == "__main__":
     SLOs.rewards["network_latency"]["upper"] = args.network_upper
     SLOs.rewards["compute_latency"]["lower"] = args.compute_lower
     SLOs.rewards["compute_latency"]["upper"] = args.compute_upper
-    main_loop(args.wandb_name, args.strategy)
+    main_loop(args.wandb_name, args.strategy, args)
