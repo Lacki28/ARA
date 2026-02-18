@@ -85,9 +85,9 @@ def get_total_delay():
         return 200.0
 
 def get_real_cpu_usage():
-    PROMETHEUS_METRIC_URL = "http://128.131.172.95:8008/prometheus/metrics/ALL/ALL/txt"
+    PROMETHEUS_METRIC_URL = "http://[ip_removed_for_submission]:8008/prometheus/metrics/ALL/ALL/txt"
     TARGET_LABELS = {
-        "agent": "128.131.172.96",  # 98
+        "agent": "[ip_removed_for_submission]",  # 98
         "datasource": "2.1",
         "host": "earthtiger"  # metalrabbit
     }

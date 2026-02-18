@@ -1,10 +1,10 @@
 import requests
 import numpy as np
 
-K8S_API_URL = "http://128.131.172.96:5050"
+K8S_API_URL = "http://[ip_removed_for_submission]:5050"
 
-NETWORK_API_URL = "http://128.131.172.95:5050/network/delay"
-NETWORK_BANDWIDTH_URL = "http://128.131.172.95:5050/network/bandwidth"
+NETWORK_API_URL = "http://[ip_removed_for_submission]/network/delay"
+NETWORK_BANDWIDTH_URL = "http://[ip_removed_for_submission]/network/bandwidth"
 
 
 def increase_target(last_latency, min_range, max_range):
@@ -34,7 +34,6 @@ def log_steps(last_latency, min_range, max_range):
 
 
 def increase_k8s_latency(cpu_limit_m):
-    """Reduce CPU allocation (simulate worse service latency)"""
     deployments = {
         "microservice1-deployment": {
             "replicas": 1,
@@ -51,7 +50,6 @@ def increase_k8s_latency(cpu_limit_m):
 
 
 def decrease_k8s_latency(cpu_limit_m):
-    """Increase CPU allocation (simulate better service latency)"""
     deployments = {
         "microservice1-deployment": {
             "replicas": 1,
@@ -98,20 +96,13 @@ def update_network_latency(delay_ms):
 
 
 def increase_network_latency(switch_delay_ms):
-    """Increase network latency by 5ms."""
-    # print(f"increase_switch_delay{switch_delay_ms}")
     switch_delay_ms = increase_target(switch_delay_ms, 0, 50)
-    # print(f"increase_switch_delay{switch_delay_ms}")
     update_network_latency(switch_delay_ms)
     return switch_delay_ms
 
 
 def decrease_network_latency(switch_delay_ms):
-    """Decrease network latency by 5ms."""
-    # print(f"decrease_switch_delay{switch_delay_ms}")
     switch_delay_ms = decrease_target(switch_delay_ms, 0, 50)
-    # print(f"decrease_switch_delay{switch_delay_ms}")
-    # switch_delay_ms = max(1, switch_delay_ms - 2)  # Ensure delay does not go below 1
     update_network_latency(switch_delay_ms)
     return switch_delay_ms
 

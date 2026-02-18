@@ -15,20 +15,18 @@ app = Flask(__name__)
 class SLO():
     def __init__(self):
 # =============== High level Metrics ===============
-        # We get the reward definitions from inSwitch
         self.rewards = {"network_latency": {"lower": 1000, "upper": 1500},
                         "compute_latency": {"lower": 1000, "upper": 1500}}
-        # We get the state definitions from inSwitch
         #First thing that we update to get the current state
         self.state = {"network_latency": None,
                       "compute_latency": None,
                       "total_latency": None}
-        # We get the lookup definitions from inSwitch
+        # We get the lookup definitions
         self.state_update = {"network_latency": get_network_latency,
                              "compute_latency": get_compute_latency,
                              "total_latency": get_total_latency_value}
 # =============== Low level Metrics ===============
-        # We get the lookup definitions from inSwitch/InNet/IDO
+        # We get the lookup definitions from
         self.action_space = {"network_delay": {"lower": 50, "upper": 0},
                              "compute_cpu": {"lower": 100, "upper": 900}}
         self.state_action_mapping = {"network_latency": "network_delay", "compute_latency": "compute_cpu"}
