@@ -14,7 +14,6 @@ def safe_tensor(x, dtype=None):
         return x.clone().detach()
     return torch.tensor(x, dtype=dtype)
 
-
 class ReplayBuffer:
     def __init__(self):
         self.obs = []
@@ -45,26 +44,22 @@ class Agent:
         if strategy == "untrained":
             self.model = PPO.load(
                 "./train_RA/train_for_latency/models/untrained_model_32_0.0001_512")  # ../models/general_model_32_0.0001_512")
-            # self.model.set_env(DummyEnv())
             self.policy = self.model.policy
         elif save_model:
             self.model = PPO.load(
-                "./train_RA/train_for_latency/models/updated_model")  # ../models/general_model_32_0.0001_512")
-            # self.model.set_env(DummyEnv())
+                f"./train_RA/train_for_latency/models/{name}")  # ../models/general_model_32_0.0001_512")
             self.policy = self.model.policy
         elif strategy == "old":
             self.model = PPO.load("../models/general_model_32_0.0001_512")
-            # self.model.set_env(OldEnv())
         elif strategy == "no_noise":
             self.model = PPO.load(
                 "./train_RA/train_for_latency/models/no_noise_latency_model_32_0.0001_512")  # ../models/general_model_32_0.0001_512")
-            # self.model.set_env(DummyEnv())
         elif strategy == "proactive":
             self.model = LinearRegression()
         else:
             self.model = PPO.load("./train_RA/train_for_latency/models/new_latency_model_32_0.0001_512")
             self.policy = self.model.policy
-            self.optimizer = torch.optim.Adam(self.policy.parameters(), lr=3e-4)
+        self.optimizer = torch.optim.Adam(self.policy.parameters(), lr=3e-4)
         self.model.n_steps = 2
         self.upper_limit = rewards['upper']
         self.lower_limit = rewards['lower']
@@ -166,10 +161,8 @@ class Agent:
 
     def train(self):
         print("Training PPO...")
-        batch_size = 1
-        print(self.buffer.obs)
-        print(self.buffer.actions)
-        with open("demofile.txt", "a+") as f:
+        batch_size = self.batch_size
+        with open("demofile_new.txt", "a+") as f:
             f.write(f"{self.buffer.obs}\n")
             f.write(f"{self.buffer.actions}\n")
             f.write(f"{self.buffer.logprobs}\n")
@@ -199,11 +192,10 @@ class Agent:
                 dist = self.policy.get_distribution(mb_obs)
                 logprobs = dist.log_prob(mb_actions)
                 entropy = dist.entropy().mean()
-
                 logits = dist.distribution.logits
                 probs = torch.softmax(logits, dim=-1)
                 rounded = probs.round(decimals=3)
-                with open("logits.txt", "a+") as f:
+                with open("logits_new.txt", "a+") as f:
                     f.write(f"{rounded}\n")
                 values_pred = self.policy.predict_values(mb_obs).squeeze(-1)
                 ratio = torch.exp(logprobs - mb_old_logprobs)
@@ -219,10 +211,9 @@ class Agent:
                 loss.backward()
                 nn.utils.clip_grad_norm_(self.policy.parameters(), 0.5)
                 self.optimizer.step()
-        self.buffer.clear()
-        if self.save_model:
-            self.model.save("./train_RA/train_for_latency/models/updated_model")
-
+            self.buffer.clear()
+            if self.save_model:
+                self.model.save(f"./train_RA/train_for_latency/models/{self.name}")
 
 def compute_gae(buffer, gamma=0.99, lam=0.95):
     advantages = []
