@@ -7,7 +7,6 @@ import wandb
 from flask import Flask, request, jsonify
 import argparse
 import requests
-# === Config ===
 LOOP_INTERVAL_SECONDS = 60
 
 app = Flask(__name__)
@@ -45,21 +44,18 @@ class SLO():
 
     def rule_reward(self, value, lower=None, upper=None):
 
-        # # Case 1: Only upper bound
         if upper is not None and lower is None:
             print("CASE 1")
             if value > upper:
                 return -(value - upper) / upper #proportional
             return 2 - (value / upper)
 
-        # Case 2: Only lower bound
         if lower is not None and upper is None:
             print("CASE 2")
             if value < lower:
                     return -(lower - value) / lower #proportional
             return 2 - (lower / value) #if I am more above it is slightly better
 
-        # Case 3: Range with midpoint target
         if lower is not None and upper is not None:
             midpoint = (lower + upper) / 2
             half_range = (upper - lower) / 2
@@ -73,7 +69,6 @@ class SLO():
                 print("value > upper")
                 return -0.5
                 # return -(value - upper) / upper #min negative reward
-            # Inside the range → reward increases near midpoint
             return 3 - abs(value - midpoint) / half_range #Max positive reward
         return 0
 
@@ -108,7 +103,6 @@ def listen_to_SLO_updates():
     app.run(host='127.0.0.1', port=5000, threaded=True)
 
 
-# === Main loop ===
 def main_loop(wandb_name, strategy, args):
     wandb.init(project=f'{wandb_name}', name=f"{strategy}: bs:{args.batch_size} ep:{args.epochs} save? {args.save_model}")
     route_thread = threading.Thread(target=listen_to_SLO_updates)

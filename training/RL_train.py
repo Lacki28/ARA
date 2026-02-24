@@ -14,7 +14,6 @@ total_timesteps=[512] #128 too small
 for step in steps:
     for learning_rate in learning_rates:
         for total_timestep in total_timesteps:
-            # === Environment & Training === DroneObjectDetectionEnv
             env = General_Env(step)
             check_env(env, warn=True)
 
@@ -26,11 +25,9 @@ for step in steps:
                 verbose=1,  # logs
                 learning_rate=learning_rate,
                 seed=42,
-                # tensorboard_log="./ppo_drone_tensorboard/test_run_anna",
                 device="cuda" if torch.cuda.is_available() else "cpu"
             )
-            # callback = DroneLatencyTensorboardCallback(env)
-            # total_timesteps is the overall number of agent-environment interactions (steps) performed during training
+            # total_timesteps is the overall number of agent-environment interactions performed during training
             for episode in range(128):
                 model.learn(total_timesteps=total_timestep)
                 env.finish()
