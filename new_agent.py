@@ -56,10 +56,14 @@ class Agent:
                 "./train_RA/train_for_latency/models/no_noise_latency_model_32_0.0001_512")  # ../models/general_model_32_0.0001_512")
         elif strategy == "proactive":
             self.model = LinearRegression()
+        elif strategy == "SA_PPO":
+            self.model = PPO.load("./models/sa_new_latency_model_32_0.0001_512")
+            self.policy = self.model.policy
         else:
             self.model = PPO.load("./train_RA/train_for_latency/models/new_latency_model_32_0.0001_512")
             self.policy = self.model.policy
-        self.optimizer = torch.optim.Adam(self.policy.parameters(), lr=3e-4)
+        if "PPO" in strategy:
+            self.optimizer = torch.optim.Adam(self.policy.parameters(), lr=3e-4)
         self.model.n_steps = 2
         self.upper_limit = rewards['upper']
         self.lower_limit = rewards['lower']
@@ -149,6 +153,26 @@ class Agent:
         wandb.log({f"{self.name} resources": self.current_resources})
         self.step += 1
 
+    def perform_global_action(self,state, index):
+        obs = torch.tensor(state, dtype=torch.float32, device="cpu")
+        with torch.no_grad():
+            dist = self.policy.get_distribution(obs.unsqueeze(0))
+            value = self.policy.predict_values(obs.unsqueeze(0)).squeeze(-1)
+            self.last_action = dist.sample()  # This is stochastic!!
+            print(self.last_action)
+            last_action, _ = self.model.predict(obs, deterministic=True)
+            print(self.last_action)
+            logprob = dist.log_prob(torch.tensor(self.last_action))
+            self.buffer.add(state, self.last_action, 0, logprob, value)
+            self.last_action = last_action[index]
+        self.current_resources = self.action_function(self.last_action, self.current_resources)
+        print(f"{self.name}: action {self.last_action} - {state}")
+        print(f"{self.action_lower_limit}<{self.action_upper_limit}")
+        print(
+            f"{self.current_resources}-{self.normalize(self.current_resources, self.action_lower_limit, self.action_upper_limit)}")
+        wandb.log({f"{self.name} action": self.last_action})
+        wandb.log({f"{self.name} resources": self.current_resources})
+        self.step += 1
     def add_trace(self, rewards, new_state):
         state = self.get_state_vector()
         reward = rewards[self.state_name]
@@ -156,8 +180,8 @@ class Agent:
         self.buffer.add_reward(reward)
 
         self.current_state = new_state[self.state_name]
-        if self.step % self.batch_size == 0 and self.strategy != "reactive" and self.strategy != "proactive":
-            self.train()
+        # if self.step % self.batch_size == 0 and self.strategy != "reactive" and self.strategy != "proactive":
+        #     self.train()
 
     def train(self):
         print("Training PPO...")

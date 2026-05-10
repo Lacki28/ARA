@@ -96,7 +96,6 @@ def update_slo():
         return jsonify({"error": "Metric not found"}), 404
 
     SLOs.update_SLOs(metric, data)
-
     return jsonify({"message": "SLO updated", "rewards": SLOs.rewards})
 
 def listen_to_SLO_updates():
@@ -104,7 +103,7 @@ def listen_to_SLO_updates():
 
 
 def main_loop(wandb_name, strategy, args):
-    wandb.init(project=f'{wandb_name}', name=f"{strategy}: bs:{args.batch_size} ep:{args.epochs} save? {args.save_model}")
+    wandb.init(project=f'{wandb_name}', name=f"new {strategy}: bs:{args.batch_size} ep:{args.epochs} save? {args.save_model}")
     route_thread = threading.Thread(target=listen_to_SLO_updates)
     route_thread.start()
 
@@ -120,11 +119,17 @@ def main_loop(wandb_name, strategy, args):
         agents.append(agent)
     while True:
         print("perform")
+        global_statevector=agents[0].get_state_vector()+agents[1].get_state_vector()
+        i=0
         for agent in agents:
             agent.update_limits(SLOs.rewards)
-            agent.perform_action()
+            if strategy=="SA_PPO":
+                agent.perform_global_action(global_statevector, i)
+            else:
+                agent.perform_action()
+            i+=1
         print("waiting")
-        response = requests.post("http://172.16.0.1:32663/clear_data")
+        response = requests.post("http://172.16.0.102:32702/clear_data")
         time.sleep(LOOP_INTERVAL_SECONDS)
         SLOs.update_state()
         total_reward, rewards = SLOs.compute_reward()
@@ -148,7 +153,7 @@ def parse_args():
     parser.add_argument("--wandb_name", type=str, default="MVP tests")
     parser.add_argument("--strategy", type=str, default="PPO")
     parser.add_argument("--batch_size", type=int, default=14)
-    parser.add_argument("--epochs", type=int, default=1)
+    parser.add_argument("--epochs", type=int, default=0)
     parser.add_argument("--save_model", type=int, default=0)
 
     return parser.parse_args()
