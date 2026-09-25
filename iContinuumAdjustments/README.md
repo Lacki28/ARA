@@ -8,7 +8,7 @@ https://github.com/disnetlab/iContinuum/tree/master/Example3
 ### 1. Deployment Images
 The updated container images referenced in `deployment.yml.j2` should be adjusted to the following:  
 
-DB: cvetac/latest2
+DB: lacki/db:v1
 
 Microservice with resize operation: lacki/microservice1:v1
 
@@ -17,3 +17,8 @@ Microservice with filter operation: lacki/microservice1:v3
 
 ### 2. Inventory Configuration
 Edit `inventory.invi` and update the placeholder IP addresses with your own IPs.
+
+### 3. Add the adapt agents
+Run the compute adapt agent with ```bash python adapt_compute_resources.py``` on the same VM as your Kubernetes Master
+Run the network adapt agent with ```bash python adapt_mininet_delay.py``` on the same VM as your Mininet
+Add the locust file `locust.py` to where you put the run scripts

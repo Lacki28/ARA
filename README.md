@@ -4,7 +4,7 @@ Repository for: "ARA: Adaptive Resource Agents for QoS Control in Multi-Domain E
 
 # How to Run the Experiments
 ## Deployment
-Deployment instructions can be read with 
+Deployment instructions can be read in 
 ```bash
 cat iContinuumAdjustments/README.md
 ```
