@@ -3,7 +3,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 
-ENTITY = ""
+ENTITY = ("tuw_lacki")
 PROJECT = "Train RL for ICSOC reward"
 METRIC = "total_reward_final"
 WINDOW = 1
@@ -46,7 +46,7 @@ def aggregate_runs(run_list, metric, window, rel):
     return ma, ma_std
 
 
-plt.figure(figsize=(10, 6))
+plt.figure(figsize=(5, 3))
 
 ma_non_rel, std_non_rel = aggregate_runs(selected_runs_non_rel, METRIC, WINDOW, False)
 if ma_non_rel is not None:
@@ -68,17 +68,17 @@ if ma_rel is not None:
         alpha=0.2
     )
 
-plt.title(f"Moving Average ({WINDOW}) of {METRIC}")
+plt.title(f"Moving Average ({WINDOW}) of reward")
 plt.xlabel("Step")
-plt.ylabel(METRIC)
+plt.ylabel("Reward")
 plt.legend()
 plt.grid(True)
 plt.tight_layout()
-plt.savefig("reward.png")
+plt.savefig("reward.pdf")
 
 
 
-plt.figure(figsize=(10, 6))
+plt.figure(figsize=(5, 3))
 
 first_label = True
 for run in selected_runs_non_rel:
@@ -120,4 +120,4 @@ plt.ylabel(METRIC)
 plt.legend()
 plt.grid(True)
 plt.tight_layout()
-plt.savefig("reward_individual.png")
+plt.savefig("reward_individual.pdf")

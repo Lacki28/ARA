@@ -10,7 +10,7 @@ print("Device:", torch.cuda.get_device_name(0) if torch.cuda.is_available() else
 steps=[32]
 learning_rates=[1e-4]
 #agent will interact with env a total of this timestamps
-total_timesteps=[512]
+total_timesteps=[1024]
 
 for step in steps:
     for learning_rate in learning_rates:
