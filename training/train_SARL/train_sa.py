@@ -27,7 +27,7 @@ for step in steps:
                 seed=42,
                 device="cuda" if torch.cuda.is_available() else "cpu"
             )
-            for episode in range(128):
+            for episode in range(256):
                 model.learn(total_timesteps=total_timestep)
             wandb.finish()
-            model.save(f"../models/sa_new_latency_model_{step}_{learning_rate}_{total_timestep}")
+            model.save(f"../models/sa_256episodes_1024ts_new_latency_model_{step}_{learning_rate}_{total_timestep}")
